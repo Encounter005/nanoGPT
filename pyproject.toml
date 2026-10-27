@@ -1,0 +1,31 @@
+[project]
+name = "nanogpt"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "encounter005", email = "1624221574@qq.com" }
+]
+requires-python = ">=3.13"
+dependencies = [
+    "datasets>=5.1.0",
+    "matplotlib>=3.11.2",
+    "numpy>=2.5.4",
+    "tensorboard>=2.21.0",
+    "tiktoken>=0.14.0",
+    "torch>=2.14.1",
+    "tqdm>=4.70.1",
+    "transformers>=5.19.0",
+    "wandb>=0.30.0",
+]
+
+[build-system]
+requires = ["uv_build>=0.13.0,<0.13.1"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "trainer"
+
+[[index]]
+url = "https://pypi.mirrors.ustc.edu.cn/simple/"
+default = true

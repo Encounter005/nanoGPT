@@ -1,0 +1,37 @@
+# 超参搜索：2x2 网格，跑 python -m trainer.sweep configs/sweep_lr.toml
+[data]
+name = "shakespeare_char"
+batch_size = 8
+block_size = 128
+
+[model]
+block_size = 128
+n_layer = 2
+n_head = 2
+n_embd = 64
+
+[optim]
+lr = 1e-3
+warmup_iters = 5
+lr_decay_iters = 20
+
+[train]
+max_iters = 20
+amp = "none"
+eval_interval = 10
+eval_iters = 3
+log_interval = 10
+
+[run]
+name = "sweep-warmup"
+resume = "none"
+device = "cpu"
+
+[log]
+console = false
+tensorboard = false
+
+[sweep]
+name = "lr-nlayer"
+mode = "grid"
+space = { "optim.lr" = [3e-4, 1e-3], "model.n_layer" = [1, 2] }
