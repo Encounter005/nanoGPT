@@ -16,6 +16,7 @@ class DataConfig:
     name: str = "shakespeare_char"  # 数据集目录名，位于 root 下
     root: str = "data"
     reader: str = "memmap"  # 数据集实现（注册名）
+    tokenizer: str = ""  # 空=有 meta.pkl 用字符级、否则 GPT-2；或 "tiktoken:p50k_base" / "hf:仓库id"
     batch_size: int = 12
     block_size: int = 256
 
@@ -154,6 +155,10 @@ class Config:
             raise ConfigError(f"[model] n_embd={m.n_embd} 必须能被 n_head={m.n_head} 整除")
         if d.block_size > m.block_size:
             raise ConfigError(f"[data] block_size={d.block_size} 超过 [model] block_size={m.block_size}")
+        if d.tokenizer and d.tokenizer.split(":", 1)[0] not in ("tiktoken", "hf"):
+            raise ConfigError(
+                f"[data] tokenizer 需要写成 \"tiktoken:<编码名>\" 或 \"hf:<仓库 id>\"，收到 {d.tokenizer!r}"
+            )
         if t.amp not in ("none", "bf16", "fp16"):
             raise ConfigError(f"[train] amp 只能是 none / bf16 / fp16，收到 {t.amp!r}")
         if t.amp == "fp16" and r.device == "cpu":

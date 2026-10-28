@@ -1,5 +1,5 @@
 [data]
-name = "chinese"
+name = "shakespeare_char"
 batch_size = 32
 block_size = 256
 
@@ -26,15 +26,18 @@ eval_interval = 150
 eval_iters = 50
 log_interval = 50
 seed = 1337
+compile = true
 
 [run]
-name = "gpt-v0-cn"
+name = "gpt-v0-en"
 device = "cuda"
 resume = "auto"
 save_interval = 150
 
 [log]
 tensorboard = true
+graph = true
+
 
 [sample]
 prompt = "\n"

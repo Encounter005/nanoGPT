@@ -11,6 +11,7 @@ import torch
 from ..configs import DataConfig
 from ..registry import register_dataset
 from ..utils import DataError
+from .tokenizers import Tokenizer, build_tokenizer
 
 
 class MemmapDataset:
@@ -23,21 +24,29 @@ class MemmapDataset:
             )
         self.train = np.memmap(train_path, dtype=np.uint16, mode="r")
         self.val = np.memmap(val_path, dtype=np.uint16, mode="r")
+
         meta_path = root / "meta.pkl"
         self.stoi: dict[str, int] | None = None
         self.itos: dict[int, str] | None = None
-        if meta_path.exists():
+        self._tok: Tokenizer | None = None
+
+        if cfg.tokenizer:  # ① 显式指定分词器，优先级最高
+            self._tok = build_tokenizer(cfg.tokenizer)
+            if meta_path.exists():
+                print(f"注意：[data] tokenizer={cfg.tokenizer!r} 已指定，忽略 {meta_path}")
+        elif meta_path.exists():  # ② 有字表就按字符级处理
             with meta_path.open("rb") as f:
                 meta = pickle.load(f)
             self.stoi, self.itos = meta.get("stoi"), meta.get("itos")
-        if self.stoi is None:  # 没有 meta 就按 GPT-2 分词处理
-            import tiktoken
+        if self._tok is None and self.stoi is None:  # ③ 兜底：GPT-2 BPE（旧行为）
+            self._tok = build_tokenizer("tiktoken:gpt2")
 
-            self._enc = tiktoken.get_encoding("gpt2")
-            self.vocab_size = self._enc.n_vocab
-        else:
-            self._enc = None
-            self.vocab_size = len(self.stoi)
+        self.vocab_size = self._tok.vocab_size if self._tok is not None else len(self.stoi)
+        if self.vocab_size > 65535:  # .bin 以 uint16 存 token id
+            raise DataError(
+                f"分词器词表 {self.vocab_size} 超过 65535，.bin 用 uint16 存不下（cl100k_base / o200k_base 这类都不行）："
+                "换 gpt2 / r50k_base / p50k_base 这类小词表，或字符级 meta.pkl"
+            )
 
     def get_batch(self, split: str, batch_size: int, block_size: int, device: str) -> tuple[torch.Tensor, torch.Tensor]:
         data = {"train": self.train, "val": self.val}.get(split)
@@ -51,13 +60,13 @@ class MemmapDataset:
         return x.to(device), y.to(device)
 
     def encode(self, text: str) -> list[int]:
-        if self.stoi is None:
-            return self._enc.encode_ordinary(text)
+        if self._tok is not None:
+            return self._tok.encode(text)
         return [self.stoi[c] for c in text if c in self.stoi]
 
     def decode(self, ids: list[int]) -> str:
-        if self.itos is None:
-            return self._enc.decode(ids)
+        if self._tok is not None:
+            return self._tok.decode(ids)
         return "".join(self.itos[i] for i in ids)
 
 

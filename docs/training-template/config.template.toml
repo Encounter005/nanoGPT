@@ -18,6 +18,12 @@
 name = "shakespeare_char"  # 数据集目录名，数据放在 data/<name>/{train,val}.bin
 root = "data"              # 数据根目录
 reader = "memmap"          # 数据实现：memmap（.bin + meta.pkl）| hf（HuggingFace，需联网）
+
+# 分词器，必须与准备数据时用的完全一致：
+#   ""                         自动：有 meta.pkl 用字符级字表，没有就用 GPT-2 BPE
+#   "tiktoken:p50k_base"       tiktoken 内置编码（gpt2 / r50k_base / p50k_base；词表须 ≤ 65535）
+#   "hf:bert-base-uncased"     HuggingFace tokenizer 仓库（首次需要网络；词表须 ≤ 65535）
+tokenizer = ""
 batch_size = 12            # 每个 micro-batch 的样本数
 block_size = 256           # 上下文长度，不能超过 [model] block_size
 
