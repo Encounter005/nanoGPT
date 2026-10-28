@@ -12,9 +12,12 @@ class PositionwiseFeedForward(nn.Module):
         dropout：分支输出的丢弃概率；本类不包含 LayerNorm 或残差相加。
         """
         super().__init__()
-        self.w_1 = nn.Linear(d_in, d_hid)  # D → d_hid，学习隐藏特征组合
-        self.w_2 = nn.Linear(d_hid, d_in)  # d_hid → D，恢复与残差分支一致的维度
-        self.dropout = nn.Dropout(dropout)
+        self.net = nn.Sequential(
+            nn.Linear(d_in, d_hid), # D → d_hid，学习隐藏特征组合
+            nn.GELU(approximate='tanh'),
+            nn.Linear(d_hid, d_in), # d_hid → D，恢复与残差分支一致的维度
+            nn.Dropout(dropout)
+        )
 
     def forward(self, x):
         """
@@ -23,7 +26,6 @@ class PositionwiseFeedForward(nn.Module):
         """
 
         # 1. [B,L,D] → [B,L,d_hid] → ReLU → [B,L,D]。
-        # ReLU 使两层线性变换不再等价于一层，增强非线性表达能力。
-        x = self.w_2(F.gelu(self.w_1(x), approximate='tanh'))
+        x =  self.net(x)
         # 2. 输出 dropout；EncoderLayer/DecoderLayer 再将结果加到原始残差上。
-        return self.dropout(x)
+        return x
