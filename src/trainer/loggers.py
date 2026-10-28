@@ -42,6 +42,26 @@ class TensorBoardLogger:
         for key, value in metrics.items():
             self.writer.add_scalar(f"{split}/{key}", value, step)
 
+    def add_graph(self, model, sample_input) -> None:
+        """把前向计算图写进 events（trace 一次；输出只取第一个张量，兼容 (logits, loss)）。"""
+        import torch
+
+        class FirstOutput(torch.nn.Module):
+            def __init__(self, inner):
+                super().__init__()
+                self.inner = inner
+
+            def forward(self, *args):
+                out = self.inner(*args)
+                return out[0] if isinstance(out, tuple) else out
+
+        was_training = model.training
+        model.eval()
+        with torch.no_grad():
+            self.writer.add_graph(FirstOutput(model), (sample_input,))
+        if was_training:
+            model.train()
+
     def close(self) -> None:
         self.writer.close()
 
@@ -62,7 +82,7 @@ class WandbLogger:
 
 def build_loggers(cfg: LogConfig, out_dir: Path, run_name: str, snapshot: dict[str, Any]) -> list:
     loggers: list = []
-    if cfg.console:
+    if cfg.console and not cfg.progress:  # 进度条模式下不再逐行打印，否则会打架
         loggers.append(ConsoleLogger())
     if cfg.file:
         loggers.append(FileLogger(out_dir / "metrics.jsonl"))

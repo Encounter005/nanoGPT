@@ -7,6 +7,7 @@ import time
 from pathlib import Path
 
 import torch
+from tqdm import tqdm
 
 from .build import autocast_context, build_all, build_optimizer
 from .checkpoint import load_ckpt, resolve_resume, save_ckpt
@@ -45,10 +46,22 @@ def train(cfg: Config) -> Path:
     seed_all(cfg.train.seed)
     device, dataset, model = build_all(cfg)
     device_type = device.type
+    raw_model = model  # 未包装的模型：存档、加载、采样都用它（torch.compile 会给键加 _orig_mod. 前缀）
+    if cfg.train.compile:
+        print("编译模型（torch.compile）：首次前向会慢几十秒……")
+        model = torch.compile(model)
+        raw_model = getattr(model, "_orig_mod", model)
     out_dir = Path(cfg.run.out_root) / cfg.run.name
     out_dir.mkdir(parents=True, exist_ok=True)
     loggers = build_loggers(cfg.log, out_dir, cfg.run.name, {"config_toml": cfg.to_toml()})
-    optimizer = build_optimizer(model, cfg.optim, device_type)
+    if cfg.log.graph:  
+        sample = torch.randint(dataset.vocab_size, (1, cfg.data.block_size), device=device)
+        for logger in loggers:
+            add_graph = getattr(logger, "add_graph", None)
+            if add_graph is not None:
+                add_graph(raw_model, sample)
+
+    optimizer = build_optimizer(raw_model, cfg.optim, device_type)
     scaler = torch.amp.GradScaler("cuda", enabled=cfg.train.amp == "fp16" and device_type == "cuda")
     ctx = autocast_context(cfg.train.amp, device_type)
 
@@ -57,7 +70,7 @@ def train(cfg: Config) -> Path:
     if resume_path is not None:
         state = load_ckpt(resume_path, device)
         try:
-            model.load_state_dict(state["model"])
+            raw_model.load_state_dict(state["model"])
         except RuntimeError as exc:
             raise ConfigError(
                 f"存档 {resume_path} 与当前配置不匹配（结构或参数量不同）：换回对应配置，或把 [run] resume 改成 none"
@@ -73,7 +86,11 @@ def train(cfg: Config) -> Path:
     model.train()
     ckpt_path = out_dir / "ckpt.pt"
     t0, tokens = time.perf_counter(), 0
-    for step in range(start_step, cfg.train.max_iters):
+    use_bar = cfg.log.progress and cfg.log.console and cfg.train.max_iters > start_step
+    steps = tqdm(
+        range(start_step, cfg.train.max_iters), desc=cfg.run.name, unit="step", dynamic_ncols=True
+    ) if use_bar else range(start_step, cfg.train.max_iters)
+    for step in steps:
         lr = lr_at(step, cfg.optim)
         for group in optimizer.param_groups:
             group["lr"] = lr
@@ -109,6 +126,8 @@ def train(cfg: Config) -> Path:
             }
             for logger in loggers:
                 logger.log(step, metrics, "train")
+            if use_bar:
+                steps.set_postfix(loss=f"{loss_sum:.4f}", lr=f"{lr:.2g}")
             t0, tokens = time.perf_counter(), 0
 
         eval_now = step % cfg.train.eval_interval == 0 or last
@@ -117,13 +136,17 @@ def train(cfg: Config) -> Path:
             for logger in loggers:
                 logger.log(step, val, "val")
             best_val = min(best_val, val["loss"])
+            if use_bar:  # val 结果贴在进度条右边，不打断进度条
+                steps.set_postfix(loss=f"{loss_sum:.4f}", lr=f"{lr:.2g}", val=f"{val['loss']:.4f}", ppl=f"{val['perplexity']:.1f}")
         if eval_now or step % cfg.run.save_interval == 0 or last:
-            save_ckpt(ckpt_path, model, optimizer, scaler, step, best_val, cfg, dataset.vocab_size)
+            save_ckpt(ckpt_path, raw_model, optimizer, scaler, step, best_val, cfg, dataset.vocab_size)
 
     last_step = max(start_step - 1, cfg.train.max_iters - 1)
+    if use_bar:
+        steps.close()
     print(f"\n训练结束：已到第 {last_step} 步，最好 val loss {best_val:.4f}，存档 {ckpt_path}")
     if cfg.run.sample_after_train:
-        text = generate_text(cfg, model, dataset, device)
+        text = generate_text(cfg, raw_model, dataset, device)
         (out_dir / "samples.txt").write_text(text + "\n", encoding="utf-8")
         print(f"采样已写入 {out_dir / 'samples.txt'}：\n{text}\n")
     for logger in loggers:

@@ -48,6 +48,7 @@ class TrainConfig:
     max_iters: int = 500
     grad_accum: int = 1
     amp: str = "none"  # none | bf16 | fp16
+    compile: bool = False  # torch.compile 训练前向；采样仍走未编译模型
     eval_interval: int = 100
     eval_iters: int = 20
     log_interval: int = 10
@@ -67,8 +68,10 @@ class RunConfig:
 @dataclass(frozen=True)
 class LogConfig:
     console: bool = True
+    progress: bool = True  # 用 tqdm 进度条代替逐步打印（VAL 结果进 postfix）
     file: bool = True
     tensorboard: bool = True
+    graph: bool = False  # 把模型计算图写进 TensorBoard（trace 一次前向）
     wandb: bool = False
     wandb_project: str = "trainer-template"
 
