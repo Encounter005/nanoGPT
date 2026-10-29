@@ -1,4 +1,4 @@
-"""训练入口：python -m trainer.train [config.toml]"""
+"""训练入口：python -m my_trainer.train [config.toml]"""
 
 from __future__ import annotations
 

@@ -9,9 +9,10 @@ import numpy as np
 import torch
 
 from ..configs import DataConfig
+from ..protocols import Tokenizer
 from ..registry import register_dataset
 from ..utils import DataError
-from .tokenizers import Tokenizer, build_tokenizer
+from .tokenizers import build_tokenizer
 
 
 class MemmapDataset:

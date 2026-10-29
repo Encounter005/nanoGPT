@@ -232,3 +232,16 @@ For more questions/discussions feel free to stop by **#nanoGPT** on Discord:
 ## acknowledgements
 
 All nanoGPT experiments are powered by GPUs on [Lambda labs](https://lambdalabs.com), my favorite Cloud GPU provider. Thank you Lambda labs for sponsoring nanoGPT!
+
+## training template (`src/my_trainer`)
+
+A small, readable training template that runs alongside the root scripts (which stay untouched). One TOML file is the single source of truth for an experiment — there are no command-line overrides.
+
+```sh
+python -m my_trainer.train  configs/debug_cpu.toml    # 40-step CPU smoke run
+python -m my_trainer.sample configs/debug_cpu.toml    # sample from runs/debug-cpu/ckpt.pt
+python -m my_trainer.bench  configs/debug_cpu.toml    # step time / tokens per second
+python -m my_trainer.sweep  configs/sweep_lr.toml     # grid search from [sweep].space
+```
+
+Each run writes `runs/<name>/{ckpt.pt, metrics.jsonl, config.toml, samples.txt, tb/}`; the `config.toml` snapshot is the complete definition of that experiment, so copying it reproduces the run. `tensorboard --logdir runs` shows loss, perplexity, accuracy and learning rate. To add an architecture, copy `src/my_trainer/models/toy_rnn.py` and register it with `@register_model(...)`. Design notes live in `docs/training-template/`.

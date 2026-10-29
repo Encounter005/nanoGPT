@@ -1,4 +1,4 @@
-"""三个契约：模型、数据、日志。新增实现只需满足这里的方法签名。"""
+"""四个契约：模型、数据、日志、分词器。新增实现只需满足这里的方法签名。"""
 
 from __future__ import annotations
 
@@ -31,6 +31,16 @@ class BatchSource(Protocol):
     def get_batch(
         self, split: str, batch_size: int, block_size: int, device: str
     ) -> tuple[Tensor, Tensor]: ...
+
+    def encode(self, text: str) -> list[int]: ...
+
+    def decode(self, ids: list[int]) -> str: ...
+
+
+class Tokenizer(Protocol):
+    """分词器契约：数据集只需要词表大小 + 编解码。自己训练的分词器满足这三样就能挂上去。"""
+
+    vocab_size: int
 
     def encode(self, text: str) -> list[int]: ...
 

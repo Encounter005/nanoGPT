@@ -2,9 +2,12 @@
 name = "shakespeare"
 batch_size = 32
 block_size = 256
+tokenizer = 'tiktoken:gpt2'
+
 
 [model]
 name = "gpt-v1"
+location = "src/gptv1.py"
 block_size = 256
 n_layer = 6
 n_head = 6
@@ -20,7 +23,7 @@ lr_decay_iters = 5000
 grad_clip = 1.0
 
 [train]
-max_iters = 5000
+max_iters = 1500
 amp = "bf16"
 eval_interval = 150
 eval_iters = 50

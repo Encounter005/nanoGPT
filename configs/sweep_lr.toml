@@ -1,4 +1,4 @@
-# 超参搜索：2x2 网格，跑 python -m trainer.sweep configs/sweep_lr.toml
+# 超参搜索：2x2 网格，跑 python -m my_trainer.sweep configs/sweep_lr.toml
 [data]
 name = "shakespeare_char"
 batch_size = 8

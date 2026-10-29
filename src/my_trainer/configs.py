@@ -16,7 +16,8 @@ class DataConfig:
     name: str = "shakespeare_char"  # 数据集目录名，位于 root 下
     root: str = "data"
     reader: str = "memmap"  # 数据集实现（注册名）
-    tokenizer: str = ""  # 空=有 meta.pkl 用字符级、否则 GPT-2；或 "tiktoken:p50k_base" / "hf:仓库id"
+    tokenizer: str = ""  # 空=有 meta.pkl 用字符级、否则 GPT-2；或 "类型:参数"，如 "tiktoken:p50k_base" / "hf:仓库id"
+    tokenizer_location: str = ""  # 分词器实现源码（.py 路径），import 即注册自定义类型
     batch_size: int = 12
     block_size: int = 256
 
@@ -24,6 +25,7 @@ class DataConfig:
 @dataclass(frozen=True)
 class ModelConfig:
     name: str = "gpt"
+    location: str = ""  # 模型实现源码（.py 路径），import 即完成 @register_model
     block_size: int = 256
     n_layer: int = 4
     n_head: int = 4
@@ -74,7 +76,7 @@ class LogConfig:
     tensorboard: bool = True
     graph: bool = False  # 把模型计算图写进 TensorBoard（trace 一次前向）
     wandb: bool = False
-    wandb_project: str = "trainer-template"
+    wandb_project: str = "my_trainer-template"
 
 
 @dataclass(frozen=True)
@@ -155,10 +157,16 @@ class Config:
             raise ConfigError(f"[model] n_embd={m.n_embd} 必须能被 n_head={m.n_head} 整除")
         if d.block_size > m.block_size:
             raise ConfigError(f"[data] block_size={d.block_size} 超过 [model] block_size={m.block_size}")
-        if d.tokenizer and d.tokenizer.split(":", 1)[0] not in ("tiktoken", "hf"):
-            raise ConfigError(
-                f"[data] tokenizer 需要写成 \"tiktoken:<编码名>\" 或 \"hf:<仓库 id>\"，收到 {d.tokenizer!r}"
-            )
+        if d.tokenizer:
+            kind, _, param = d.tokenizer.partition(":")
+            if not (kind.strip() and param.strip()):
+                raise ConfigError(
+                    f"[data] tokenizer 需要写成 \"<类型>:<参数>\"，例如 \"tiktoken:gpt2\" / \"hf:仓库 id\"；"
+                    f"自定义类型用 [data] tokenizer_location 指定实现源码，收到 {d.tokenizer!r}"
+                )
+        for where, loc in (("[model] location", m.location), ("[data] tokenizer_location", d.tokenizer_location)):
+            if loc and not (loc.endswith(".py") and Path(loc).is_file()):
+                raise ConfigError(f"{where} 需要一个存在的 .py 路径（相对仓库根），收到 {loc!r}")
         if t.amp not in ("none", "bf16", "fp16"):
             raise ConfigError(f"[train] amp 只能是 none / bf16 / fp16，收到 {t.amp!r}")
         if t.amp == "fp16" and r.device == "cpu":
@@ -189,7 +197,7 @@ class Config:
 
     def to_toml(self) -> str:
         """配置快照：写进 run 目录，复制这一份就能复现整次实验。"""
-        lines = ["# trainer 配置快照：这一份文件就是本次实验的完整定义", ""]
+        lines = ["# my_trainer 配置快照：这一份文件就是本次实验的完整定义", ""]
         for name, cls in SECTIONS.items():
             lines.append(f"[{name}]")
             for f in fields(cls):

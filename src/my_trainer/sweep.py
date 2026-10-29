@@ -1,7 +1,7 @@
-"""超参搜索入口：python -m trainer.sweep [config.toml]
+"""超参搜索入口：python -m my_trainer.sweep [config.toml]
 
 从 [sweep].space 展开组合，为每组生成 runs/<sweep>/<run_id>/config.toml，
-再用子进程 python -m trainer.train 跑一次（隔离显存与全局状态），最后汇总成表。
+再用子进程 python -m my_trainer.train 跑一次（隔离显存与全局状态），最后汇总成表。
 """
 
 from __future__ import annotations
@@ -107,7 +107,7 @@ def main() -> None:
         cfg_path = run_dir / "config.toml"
         cfg_path.write_text(Config.from_dict(patched).to_toml(), encoding="utf-8")
         print(f"\n=== {rid} ===")
-        proc = subprocess.run([sys.executable, "-m", "trainer.train", str(cfg_path)], capture_output=True, text=True)
+        proc = subprocess.run([sys.executable, "-m", "my_trainer.train", str(cfg_path)], capture_output=True, text=True)
         if proc.returncode != 0:
             print(proc.stderr.strip()[-1500:])
             rows.append(

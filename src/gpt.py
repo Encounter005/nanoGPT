@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-from trainer.configs import ModelConfig
-from trainer.registry import register_model
+from my_trainer.configs import ModelConfig
+from my_trainer.registry import register_model
 import torch
 import torch.nn as nn
 import torch.nn.functional as F

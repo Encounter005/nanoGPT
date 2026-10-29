@@ -1,16 +1,17 @@
 # ============================================================================
-# trainer 配置模板：复制成 configs/<实验名>.toml 后按需修改
+# my_trainer 配置模板：复制成 configs/<实验名>.toml 后按需修改
 #
-#   python -m trainer.train  configs/<实验名>.toml
-#   python -m trainer.sample configs/<实验名>.toml
-#   python -m trainer.bench  configs/<实验名>.toml
-#   python -m trainer.sweep  configs/<实验名>.toml
+#   python -m my_trainer.train  configs/<实验名>.toml
+#   python -m my_trainer.sample configs/<实验名>.toml
+#   python -m my_trainer.bench  configs/<实验名>.toml
+#   python -m my_trainer.sweep  configs/<实验名>.toml
 #
 # 约定：
 #   * 配置文件是唯一来源，没有命令行覆盖，改参数 = 改这份文件
 #   * 省略任何字段都会用默认值（下面写的全就是默认值，直接跑也能用）
 #   * 键名写错会报错，并提示最接近的字段名
-#   * 配置里的每一节在代码里对应一个 dataclass：src/trainer/configs.py
+#   * 配置里的每一节在代码里对应一个 dataclass：src/my_trainer/configs.py
+#   * 字段含义与排错见 docs/training-template/使用手册.md；现成例子见 configs/*.toml
 # ============================================================================
 
 # ---------------------------------- 数据 -----------------------------------
@@ -22,14 +23,22 @@ reader = "memmap"          # 数据实现：memmap（.bin + meta.pkl）| hf（Hu
 # 分词器，必须与准备数据时用的完全一致：
 #   ""                         自动：有 meta.pkl 用字符级字表，没有就用 GPT-2 BPE
 #   "tiktoken:p50k_base"       tiktoken 内置编码（gpt2 / r50k_base / p50k_base；词表须 ≤ 65535）
-#   "hf:bert-base-uncased"     HuggingFace tokenizer 仓库（首次需要网络；词表须 ≤ 65535）
+#   "hf:bert-base-uncased"     HuggingFace tokenizer（仓库 id 或本地目录；词表须 ≤ 65535）
+#   "<类型>:<参数>"            用 @register_tokenizer 注册过的自定义类型（源码见下面的 tokenizer_location）
 tokenizer = ""
+
+# 自定义分词器的实现源码（.py，相对仓库根）：import 时执行里面的 @register_tokenizer；内置类型留空
+tokenizer_location = ""
 batch_size = 12            # 每个 micro-batch 的样本数
 block_size = 256           # 上下文长度，不能超过 [model] block_size
 
 # ---------------------------------- 模型 -----------------------------------
 [model]
-name = "gpt"               # 注册名：gpt（根目录 model.py）| toy_rnn | gpt_v0（src/gpt.py）
+name = "gpt"               # 注册名：gpt（根目录 model.py）| toy_rnn | gpt_v0（src/gpt.py）| gpt-v1（src/gptv1.py）
+
+# 模型实现源码（.py，相对仓库根）：import 时执行里面的 @register_model，上面就能填它的注册名；内置模型留空
+location = ""
+
 block_size = 256           # 最大位置数，必须 >= [data] block_size
 n_layer = 4                # Transformer 层数
 n_head = 4                 # 注意力头数；n_embd 必须能被它整除
@@ -88,7 +97,7 @@ file = true                # 写 metrics.jsonl（sweep 汇总读它）
 tensorboard = true         # 写 tb/：tensorboard --logdir runs
 graph = false              # 把前向计算图写进 TensorBoard 的 Graphs 面板
 wandb = false              # 打开需要 WANDB_API_KEY；默认关闭，不联网
-wandb_project = "trainer-template"
+wandb_project = "my_trainer-template"  # wandb 里的项目名；wandb = false 时忽略
 
 # ---------------------------------- 采样 -----------------------------------
 [sample]

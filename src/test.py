@@ -5,9 +5,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
-import trainer
-from trainer.configs import ModelConfig
-from trainer.registry import register_model
+import my_trainer
+from my_trainer.configs import ModelConfig
+from my_trainer.registry import register_model
 
 def main():
     pass

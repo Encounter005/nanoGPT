@@ -1,4 +1,4 @@
-"""采样入口：python -m trainer.sample [config.toml]"""
+"""采样入口：python -m my_trainer.sample [config.toml]"""
 
 from __future__ import annotations
 
@@ -32,7 +32,7 @@ def main() -> None:
     device, dataset, model = build_all(cfg)
     ckpt = Path(cfg.sample.ckpt) if cfg.sample.ckpt else Path(cfg.run.out_root) / cfg.run.name / "ckpt.pt"
     if not ckpt.exists():
-        raise ConfigError(f"找不到存档 {ckpt}：先跑 python -m trainer.train")
+        raise ConfigError(f"找不到存档 {ckpt}：先跑 python -m my_trainer.train")
     model.load_state_dict(load_ckpt(ckpt, device)["model"])
     text = generate_text(cfg, model, dataset, device)
     print(text)

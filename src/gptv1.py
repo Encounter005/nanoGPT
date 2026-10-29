@@ -5,8 +5,8 @@ import torch
 import torch.nn as nn
 from torch import Tensor
 import torch.nn.functional as F
-from trainer.configs import ModelConfig
-from trainer.registry import register_model
+from my_trainer.configs import ModelConfig
+from my_trainer.registry import register_model
 
 
 class LayerNorm(nn.Module):

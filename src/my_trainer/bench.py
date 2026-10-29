@@ -1,4 +1,4 @@
-"""性能基准入口：python -m trainer.bench [config.toml]"""
+"""性能基准入口：python -m my_trainer.bench [config.toml]"""
 
 from __future__ import annotations
 

@@ -17,7 +17,7 @@ def _load_gpt():
         module = importlib.import_module("model")
     except ImportError as exc:
         raise ConfigError(
-            "找不到根目录 model.py：请在仓库根目录运行 python -m trainer.train ..."
+            "找不到根目录 model.py：请在仓库根目录运行 python -m my_trainer.train ..."
         ) from exc
     return module.GPT, module.GPTConfig
 

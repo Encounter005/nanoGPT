@@ -1,28 +1,22 @@
 """分词器适配：把不同来源的 encode/decode 统一成 BatchSource 需要的样子。
 
-[data] tokenizer 的写法：
+[data] tokenizer 的写法是 "<类型>:<参数>"，参数原样交给该类型的构建函数：
     ""                        自动：有 meta.pkl 用字符级字表，否则 GPT-2 BPE（保持旧行为）
     "tiktoken:p50k_base"      tiktoken 内置编码（gpt2 / r50k_base / p50k_base；词表须 ≤ 65535）
-    "hf:bert-base-uncased"    HuggingFace 上的 tokenizer 仓库（首次需要网络下载）
+    "hf:bert-base-uncased"    HuggingFace tokenizer（仓库 id 或本地目录；首次可能需要网络）
+
+自己训练的分词器：写一个类满足 Tokenizer（vocab_size + encode/decode），用
+@register_tokenizer("类型名") 注册 "参数 -> Tokenizer" 的构建函数，配置里就能写 "类型名:参数"。
+实现写在哪个文件都行，把路径填进配置的 [data] tokenizer_location 即可，不用改这里。
 
 注意：分词器必须和数据准备时用的一致，否则 id 能对上、文本解出来是乱码。
 """
 
 from __future__ import annotations
 
-from typing import Protocol
-
-from ..utils import DataError
-
-
-class Tokenizer(Protocol):
-    """数据集只需要这三样：词表大小 + 编解码。"""
-
-    vocab_size: int
-
-    def encode(self, text: str) -> list[int]: ...
-
-    def decode(self, ids: list[int]) -> str: ...
+from ..protocols import Tokenizer
+from ..registry import TOKENIZERS, register_tokenizer
+from ..utils import DataError, suggest
 
 
 class _TiktokenTokenizer:
@@ -64,14 +58,22 @@ class _HFTokenizer:
         return self._tok.decode(ids, skip_special_tokens=True)
 
 
+@register_tokenizer("tiktoken")
+def _build_tiktoken(name: str) -> Tokenizer:
+    return _TiktokenTokenizer(name)
+
+
+@register_tokenizer("hf")
+def _build_hf(repo_id: str) -> Tokenizer:
+    return _HFTokenizer(repo_id)
+
+
 def build_tokenizer(spec: str) -> Tokenizer:
-    """把 "tiktoken:名字" / "hf:仓库id" 变成分词器对象；空串由调用方决定。"""
-    kind, _, name = spec.partition(":")
-    kind, name = kind.strip(), name.strip()
-    if not name:
-        raise DataError(f"[data] tokenizer 写法应为 'tiktoken:gpt2' 或 'hf:repo/id'，收到 {spec!r}")
-    if kind == "tiktoken":
-        return _TiktokenTokenizer(name)
-    if kind == "hf":
-        return _HFTokenizer(name)
-    raise DataError(f"未知的 tokenizer 类型 {kind!r}：只支持 tiktoken / hf")
+    """把 "类型:参数" 交给注册的构建函数；空串由调用方决定。"""
+    kind, _, param = spec.partition(":")
+    kind, param = kind.strip(), param.strip()
+    if not param:
+        raise DataError(f"[data] tokenizer 写法应为 '类型:参数'，例如 'tiktoken:gpt2'，收到 {spec!r}")
+    if kind not in TOKENIZERS:
+        raise DataError(f"未注册的分词器类型 {kind!r}{suggest(kind, TOKENIZERS)}")
+    return TOKENIZERS[kind](param)

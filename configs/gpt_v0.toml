@@ -5,6 +5,7 @@ block_size = 256
 
 [model]
 name = "gpt_v0"
+location = "src/gpt.py"
 block_size = 256
 n_layer = 6
 n_head = 6
